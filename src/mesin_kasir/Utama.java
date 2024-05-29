@@ -137,44 +137,52 @@ public class Utama extends javax.swing.JFrame {
         }
     }
     
+    public int hitungKembalian(int totalBayar) {
+        int totalHarga = hitungTotalHarga();
+        return totalBayar - totalHarga;
+    }
+    
     // Method to save transaction history
     public void simpanRiwayatTransaksi() {
-        try {
+        int result = JOptionPane.showConfirmDialog(this, "Apakah Anda yakin ingin menambah transaksi ini?", "Konfirmasi Tambah", JOptionPane.YES_NO_OPTION);
+        if (result == JOptionPane.YES_OPTION) {
             String namaPembeli = text_nama_pembeli.getText();
-            Date date = text_tanggal.getDate();
-            DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-            String tanggal = dateFormat.format(date);
+            // Ambil tanggal saat ini
+            java.sql.Date tanggal = new java.sql.Date(new java.util.Date().getTime());
+            int totalHarga = hitungTotalHarga(); // Hitung total harga
+            int uangDibayarkan = Integer.parseInt(text_jumlah_bayar.getText());
+            int totalBayar = totalHarga + uangDibayarkan;
+            int kembalian = hitungKembalian(totalBayar); // Hitung kembalian
 
-            int totalHarga = hitungTotalHarga();
-            int uangDibayarkan = Integer.parseInt(text_bayar_pembeli.getText());
-            int kembalian = Integer.parseInt(text_kembalian.getText());
+            try {
+                String query = "INSERT INTO riwayat_transaksi (nama_pembeli, tanggal, total_harga, uang_dibayarkan, kembalian, total_bayar) VALUES (?, ?, ?, ?, ?, ?)";
+                PreparedStatement pst = k.getCon().prepareStatement(query);
+                pst.setString(1, namaPembeli);
+                pst.setDate(2, tanggal);
+                pst.setInt(3, totalHarga);
+                pst.setInt(4, uangDibayarkan);
+                pst.setInt(5, kembalian);
+                pst.setInt(6, totalBayar);
+                pst.executeUpdate();
 
-            // Insert into riwayat_transaksi
-            String queryRiwayat = "INSERT INTO riwayat_transaksi (nama_pembeli, tanggal, total_harga, uang_dibayarkan, kembalian) VALUES (?, ?, ?, ?, ?)";
-            stat = k.getCon().prepareStatement(queryRiwayat, PreparedStatement.RETURN_GENERATED_KEYS);
-            stat.setString(1, namaPembeli);
-            stat.setString(2, tanggal);
-            stat.setInt(3, totalHarga);
-            stat.setInt(4, uangDibayarkan);
-            stat.setInt(5, kembalian);
-            stat.executeUpdate();
+                JOptionPane.showMessageDialog(this, "Transaksi berhasil dicatat.");
 
-            // Retrieve the generated key for riwayat_transaksi
-            ResultSet rsKey = stat.getGeneratedKeys();
-            int idRiwayat = 0;
-            if (rsKey.next()) {
-                idRiwayat = rsKey.getInt(1);
+                // Clear text fields
+                text_nama_pembeli.setText("");
+                text_jumlah_bayar.setText("");
+                text_kembalian.setText("");
+
+                // Hapus isi tabel transaksi di database
+                String deleteQuery = "DELETE FROM transaksi";
+                PreparedStatement deleteStat = k.getCon().prepareStatement(deleteQuery);
+                deleteStat.executeUpdate();
+
+                // Hapus isi tabel transaksi dari model
+                model.setRowCount(0);
+
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-
-            // Insert all rows from transaksi into riwayat_transaksi
-            String queryTransaksi = "INSERT INTO riwayat_transaksi (nama_barang, harga, jumlah_beli, total_bayar, id_riwayat_transaksi) SELECT nama_barang, harga, jumlah_beli, total_bayar, ? FROM transaksi";
-            stat = k.getCon().prepareStatement(queryTransaksi);
-            stat.setInt(1, idRiwayat);
-            stat.executeUpdate();
-
-            JOptionPane.showMessageDialog(null, "Riwayat transaksi berhasil disimpan!");
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(null, "Error: " + e.getMessage());
         }
     }
 
@@ -195,20 +203,6 @@ public class Utama extends javax.swing.JFrame {
             JOptionPane.showMessageDialog(null, "Pilih barang yang akan dihapus.");
         }
     }
-
-
-
-
-    
-    
-    
-
-
-    
-    
-
-
-        
 
     /**
      * This method is called from within the constructor to initialize the form.
@@ -238,7 +232,7 @@ public class Utama extends javax.swing.JFrame {
         text_kembalian = new javax.swing.JTextField();
         jScrollPane2 = new javax.swing.JScrollPane();
         tabel_transaksi = new javax.swing.JTable();
-        btn_tambah_barang1 = new javax.swing.JButton();
+        btn_riwayat = new javax.swing.JButton();
         Hapus = new javax.swing.JButton();
         btn_logout = new javax.swing.JButton();
 
@@ -355,11 +349,11 @@ public class Utama extends javax.swing.JFrame {
         ));
         jScrollPane2.setViewportView(tabel_transaksi);
 
-        btn_tambah_barang1.setFont(new java.awt.Font("Segoe UI", 1, 14)); // NOI18N
-        btn_tambah_barang1.setText("RIWAYAT TRANSAKSI");
-        btn_tambah_barang1.addActionListener(new java.awt.event.ActionListener() {
+        btn_riwayat.setFont(new java.awt.Font("Segoe UI", 1, 14)); // NOI18N
+        btn_riwayat.setText("RIWAYAT TRANSAKSI");
+        btn_riwayat.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                btn_tambah_barang1ActionPerformed(evt);
+                btn_riwayatActionPerformed(evt);
             }
         });
 
@@ -432,7 +426,7 @@ public class Utama extends javax.swing.JFrame {
                     .addGroup(layout.createSequentialGroup()
                         .addComponent(btn_logout, javax.swing.GroupLayout.PREFERRED_SIZE, 97, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(btn_tambah_barang1)))
+                        .addComponent(btn_riwayat)))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -476,7 +470,7 @@ public class Utama extends javax.swing.JFrame {
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 14, Short.MAX_VALUE)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(btn_logout)
-                            .addComponent(btn_tambah_barang1, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                            .addComponent(btn_riwayat, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)))
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(jLabel7)
@@ -536,9 +530,14 @@ public class Utama extends javax.swing.JFrame {
         // TODO add your handling code here:
     }//GEN-LAST:event_text_kembalianActionPerformed
 
-    private void btn_tambah_barang1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btn_tambah_barang1ActionPerformed
+    private void btn_riwayatActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btn_riwayatActionPerformed
         // TODO add your handling code here:
-    }//GEN-LAST:event_btn_tambah_barang1ActionPerformed
+        this.dispose();
+    
+    // Buka jendela Utama
+        Riwayat riwayat = new Riwayat();
+        riwayat.setVisible(true);
+    }//GEN-LAST:event_btn_riwayatActionPerformed
 
     private void HapusActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_HapusActionPerformed
         // TODO add your handling code here:
@@ -595,9 +594,9 @@ public class Utama extends javax.swing.JFrame {
     private javax.swing.JButton btn_bayar;
     private javax.swing.JButton btn_jumlah;
     private javax.swing.JButton btn_logout;
+    private javax.swing.JButton btn_riwayat;
     private javax.swing.JButton btn_selesaikan_pesanan;
     private javax.swing.JButton btn_tambah_barang;
-    private javax.swing.JButton btn_tambah_barang1;
     private javax.swing.JComboBox<String> dropdown_barang;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
